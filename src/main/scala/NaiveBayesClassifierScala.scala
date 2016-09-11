@@ -1,6 +1,9 @@
 import org.apache.spark.ml.classification.NaiveBayes
-import org.apache.spark.ml.feature.{HashingTF, IDF, LabeledPoint, Tokenizer}
-import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
+import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.feature.{HashingTF, StopWordsRemover, Tokenizer}
+import org.apache.spark.sql.{DataFrame, SparkSession}
+
+import scala.annotation.tailrec
 
 /**
   * Victor Kwak, 9/10/16
@@ -13,28 +16,47 @@ object NaiveBayesClassifierScala extends App {
     .appName("Naive Bayes Spam filter")
     .getOrCreate()
 
-  val trainingData = {
+  import spark.implicits._
+
+  val data = {
     val dataDirectory: String = "./Data/test/RedditData/"
     val subreddits: Seq[String] = Seq("AMA", "AskEngineers", "Economics", "Fitness", "Showerthoughts")
     val dataDirectories: Seq[String] = subreddits.map(subreddit => dataDirectory + subreddit + ".TITLE")
 
-    val data = {
-      val input: Seq[DataFrame[String]] = dataDirectories
-        .map(directory => spark.read.text(directory).as[String])
-          .map(stringDataset => )
-//        .map(stringDataset => stringDataset.toDF("label", "sentence"))
+    val input = dataDirectories
+      .map(directory => spark.read.text(directory).as[String])
+      .zipWithIndex.map { case (stringDataset, i) => stringDataset.map(string => (i, string)) }
+      .map(stringDataset => stringDataset.toDF("label", "sentence"))
 
-      val tokenizer = new Tokenizer().setInputCol("sentence").setOutputCol("words")
-      val wordsData = input.map(stringDataset => tokenizer.transform(stringDataset))
+    val tokenizer = new Tokenizer().setInputCol("sentence").setOutputCol("words")
+    val remover = new StopWordsRemover().setInputCol("words").setOutputCol("filteredWords")
+    val wordsData = input.map(stringDataset => tokenizer.transform(stringDataset))
+    val filteredWordsData = wordsData.map(words => remover.transform(words))
 
-      val tf = new HashingTF().setInputCol("words").setOutputCol("rawFeatures")
-      val featureizedData = wordsData.map(stringDataFrame => tf.transform(stringDataFrame))
-      val idf = new IDF().setInputCol("rawFeatures").setOutputCol("features")
-      val idfModels = featureizedData.map(tfDataFrame => idf.fit(tfDataFrame))
-      val rescaledData = (idfModels, featureizedData).zipped
-        .map { (idfData, stringDataFrame) => idfData.transform(stringDataFrame) }
-      rescaledData
+    val tf = new HashingTF().setInputCol("filteredWords").setOutputCol("features")
+    val featureizedData = filteredWordsData.map(stringDataFrame => tf.transform(stringDataFrame))
+
+    def mergeData(dataSequence: Seq[DataFrame]) = {
+      @tailrec def helper(head: DataFrame, tail: Seq[DataFrame]): DataFrame = {
+        if (tail.isEmpty) head
+        else helper(head union tail.head, tail.tail)
+      }
+      helper(dataSequence.head, dataSequence.tail)
     }
-    data.foreach(dataframe => dataframe.select("features", "label"))
+    mergeData(featureizedData)
   }
+
+  val Array(trainingData, testData) = data.randomSplit(Array(0.9, 0.1))
+
+  val model = new NaiveBayes().fit(trainingData)
+
+  val predictions = model.transform(testData)
+  predictions.show()
+
+  val evaluator = new MulticlassClassificationEvaluator()
+    .setLabelCol("label")
+    .setPredictionCol("prediction")
+    .setMetricName("accuracy")
+  val accuracy = evaluator.evaluate(predictions)
+  println("Accuracy: " + accuracy)
 }
