@@ -20,12 +20,18 @@ object NaiveBayesClassifierScala extends App {
 
   val data = {
     val dataDirectory: String = "./Data/test/RedditData/"
-    val subreddits: Seq[String] = Seq("AMA", "AskEngineers", "Economics", "Fitness", "Showerthoughts")
+    val subreddits: Seq[String] = Seq(
+      "AMA",
+      "AskEngineers",
+      "Economics",
+      "Fitness",
+      "Showerthoughts"
+    )
     val dataDirectories: Seq[String] = subreddits.map(subreddit => dataDirectory + subreddit + ".TITLE")
 
     val input = dataDirectories
       .map(directory => spark.read.text(directory).as[String])
-      .zipWithIndex.map { case (stringDataset, i) => stringDataset.map(string => (i, string)) }
+      .zipWithIndex.map { case (stringDataset, i) => stringDataset.map(string => (i, PorterStemmer.stem(string))) }
       .map(stringDataset => stringDataset.toDF("label", "sentence"))
 
     val tokenizer = new Tokenizer().setInputCol("sentence").setOutputCol("words")
@@ -46,7 +52,7 @@ object NaiveBayesClassifierScala extends App {
     mergeData(featureizedData)
   }
 
-  val Array(trainingData, testData) = data.randomSplit(Array(0.9, 0.1))
+  val Array(trainingData, testData) = data.randomSplit(Array(0.7, 0.3))
 
   val model = new NaiveBayes().fit(trainingData)
 
