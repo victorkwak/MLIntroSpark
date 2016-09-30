@@ -2,11 +2,15 @@ import org.apache.spark.ml.classification.NaiveBayes
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.feature._
 import org.apache.spark.sql.SparkSession
+import org.apache.log4j.{Level, Logger}
+
+
 
 /**
   * Victor Kwak, 9/10/16
   */
 object NaiveBayesClassifierScala extends App {
+  Logger.getLogger("org").setLevel(Level.OFF)
   // configuration set for local running on 4 cores.
   val spark = SparkSession
     .builder()
@@ -20,12 +24,13 @@ object NaiveBayesClassifierScala extends App {
     val dataDirectory: String = "./Data/RedditData/"
     val subreddits: Seq[String] = Seq(
       "AMA",
-//      "AskEngineers",
-//      "BuyItForLife",
-//      "DnD",
-//      "Economics",
-//      "Fitness",
-      "Frugal",      "JamesBond",
+      "AskEngineers",
+      "BuyItForLife",
+      "DnD",
+      "Economics",
+      "Fitness",
+      "Frugal",
+      "JamesBond",
       "LifeProTips",
       "Showerthoughts"
     )
@@ -39,18 +44,14 @@ object NaiveBayesClassifierScala extends App {
 
     val tokenizer = new Tokenizer().setInputCol("sentence").setOutputCol("words")
     val remover = new StopWordsRemover().setInputCol(tokenizer.getOutputCol).setOutputCol("filteredWords")
-    //    val tf = new HashingTF().setInputCol(remover.getOutputCol).setOutputCol("nonNormalFeatures")
-    val countVectorizer = new CountVectorizer().setInputCol(remover.getOutputCol).setOutputCol("nonNormalFeatures")
-    val normalizer = new Normalizer().setInputCol(countVectorizer.getOutputCol).setOutputCol("features")
+    val tf = new HashingTF().setInputCol(remover.getOutputCol).setOutputCol("nonNormalFeatures")
+    val normalizer = new Normalizer().setInputCol(tf.getOutputCol).setOutputCol("features")
       .setP(2)
-    //    val normalizer = new Normalizer().setInputCol(tf.getOutputCol).setOutputCol("features")
-    //      .setP(2)
 
 
     val wordsData = tokenizer.transform(input)
     val filteredWordsData = remover.transform(wordsData)
-    val countVectorizerModel = countVectorizer.fit(filteredWordsData)
-    val featureizedData = countVectorizerModel.transform(filteredWordsData)
+    val featureizedData = tf.transform(filteredWordsData)
     val normalizedData = normalizer.transform(featureizedData)
 
     normalizedData
