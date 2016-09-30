@@ -19,12 +19,13 @@ object NaiveBayesClassifierScala extends App {
   import spark.implicits._
 
   val data = {
-    val dataDirectory: String = "./Data/spam/SMSSpam"
+    val dataDirectory: String = "./Data/Debate/debateClean"
 
-    val input = spark.read.textFile(dataDirectory).map(_.split("\t")).map(
+    val input = spark.read.textFile(dataDirectory).map(_.split(": ")).map(
       array => array(0) match {
-        case "ham" => (0, array(1))
-        case "spam" => (1, array(1))
+        case "HOLT" => (0, array(1))
+        case "CLINTON" => (1, array(1))
+        case "TRUMP" => (2, array(1))
       }
     ).toDF("label", "sentence")
 
@@ -48,6 +49,7 @@ object NaiveBayesClassifierScala extends App {
       .setPredictionCol("prediction")
       .setMetricName("accuracy")
     val accuracy = evaluator.evaluate(predictions)
+    predictions.show()
     println("Accuracy: " + accuracy)
   }
 
