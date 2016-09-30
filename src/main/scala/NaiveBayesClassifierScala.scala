@@ -1,5 +1,5 @@
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.ml.classification.{LogisticRegression, NaiveBayes}
+import org.apache.spark.ml.classification.{LogisticRegression, NaiveBayes, OneVsRest}
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.feature._
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -60,8 +60,10 @@ object NaiveBayesClassifierScala extends App {
   val naiveBayesPredictions = naiveBayesModel.transform(testData)
   evaluateModel(naiveBayesPredictions)
 
-  //Logistic Regression
-  val logisticRegressionModel = new LogisticRegression().fit(trainingData)
-  val logisticRegressionPredictions = logisticRegressionModel.transform(testData)
-  evaluateModel(logisticRegressionPredictions)
+  //One vs Rest (Logistic Regression)
+  val logisticRegression = new LogisticRegression()
+  val oneVsRest = new OneVsRest().setClassifier(logisticRegression)
+  val oneVsRestModel = oneVsRest.fit(trainingData)
+  val oneVsRestPredictions = oneVsRestModel.transform(testData)
+  evaluateModel(oneVsRestPredictions)
 }
