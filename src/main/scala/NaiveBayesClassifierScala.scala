@@ -4,8 +4,6 @@ import org.apache.spark.ml.feature._
 import org.apache.spark.sql.SparkSession
 import org.apache.log4j.{Level, Logger}
 
-
-
 /**
   * Victor Kwak, 9/10/16
   */
@@ -21,33 +19,19 @@ object NaiveBayesClassifierScala extends App {
   import spark.implicits._
 
   val data = {
-    val dataDirectory: String = "./Data/RedditData/"
-    val subreddits: Seq[String] = Seq(
-      "AMA",
-      "AskEngineers",
-      "BuyItForLife",
-      "DnD",
-      "Economics",
-      "Fitness",
-      "Frugal",
-      "JamesBond",
-      "LifeProTips",
-      "Showerthoughts"
-    )
-    val dataDirectories: Seq[String] = subreddits.map(subreddit => dataDirectory + subreddit + ".TITLE")
+    val dataDirectory: String = "./Data/spam/SMSSpam"
 
-    val input = dataDirectories
-      .map(directory => spark.read.text(directory).as[String])
-      .zipWithIndex.map { case (stringDataset, i) => stringDataset.map(string => (i, string)) }
-      .map(stringDataset => stringDataset.toDF("label", "sentence"))
-      .reduce(_ union _)
+    val input = spark.read.textFile(dataDirectory).map(_.split("\t")).map(
+      array => array(0) match {
+        case "ham" => (0, array(1))
+        case "spam" => (1, array(1))
+      }
+    ).toDF("label", "sentence")
 
     val tokenizer = new Tokenizer().setInputCol("sentence").setOutputCol("words")
     val remover = new StopWordsRemover().setInputCol(tokenizer.getOutputCol).setOutputCol("filteredWords")
     val tf = new HashingTF().setInputCol(remover.getOutputCol).setOutputCol("nonNormalFeatures")
-    val normalizer = new Normalizer().setInputCol(tf.getOutputCol).setOutputCol("features")
-      .setP(2)
-
+    val normalizer = new Normalizer().setInputCol(tf.getOutputCol).setOutputCol("features").setP(Double.PositiveInfinity)
 
     val wordsData = tokenizer.transform(input)
     val filteredWordsData = remover.transform(wordsData)
