@@ -30,12 +30,13 @@ object NaiveBayesClassifierScala extends App {
 
     val tokenizer = new Tokenizer().setInputCol("sentence").setOutputCol("words")
     val remover = new StopWordsRemover().setInputCol(tokenizer.getOutputCol).setOutputCol("filteredWords")
-    val tf = new HashingTF().setInputCol(remover.getOutputCol).setOutputCol("nonNormalFeatures")
-    val normalizer = new Normalizer().setInputCol(tf.getOutputCol).setOutputCol("features").setP(Double.PositiveInfinity)
+    val countVectorizer = new CountVectorizer().setInputCol(remover.getOutputCol).setOutputCol("nonNormalizedFeatures")
+    val normalizer = new Normalizer().setInputCol(countVectorizer.getOutputCol).setOutputCol("features").setP(Double.PositiveInfinity)
 
     val wordsData = tokenizer.transform(input)
     val filteredWordsData = remover.transform(wordsData)
-    val featureizedData = tf.transform(filteredWordsData)
+    val countVectorizerModel = countVectorizer.fit(filteredWordsData)
+    val featureizedData = countVectorizerModel.transform(filteredWordsData)
     val normalizedData = normalizer.transform(featureizedData)
 
     normalizedData.select("label", "sentence", "features")
