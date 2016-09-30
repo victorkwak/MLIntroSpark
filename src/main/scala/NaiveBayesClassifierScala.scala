@@ -1,9 +1,7 @@
 import org.apache.spark.ml.classification.NaiveBayes
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
-import org.apache.spark.ml.feature.{HashingTF, StopWordsRemover, Tokenizer}
-import org.apache.spark.sql.{DataFrame, SparkSession}
-
-import scala.annotation.tailrec
+import org.apache.spark.ml.feature._
+import org.apache.spark.sql.SparkSession
 
 /**
   * Victor Kwak, 9/10/16
@@ -19,37 +17,43 @@ object NaiveBayesClassifierScala extends App {
   import spark.implicits._
 
   val data = {
-    val dataDirectory: String = "./Data/test/RedditData/"
+    val dataDirectory: String = "./Data/RedditData/"
     val subreddits: Seq[String] = Seq(
       "AMA",
-      "AskEngineers",
-      "Economics",
-      "Fitness",
+//      "AskEngineers",
+//      "BuyItForLife",
+//      "DnD",
+//      "Economics",
+//      "Fitness",
+      "Frugal",      "JamesBond",
+      "LifeProTips",
       "Showerthoughts"
     )
     val dataDirectories: Seq[String] = subreddits.map(subreddit => dataDirectory + subreddit + ".TITLE")
 
     val input = dataDirectories
       .map(directory => spark.read.text(directory).as[String])
-      .zipWithIndex.map { case (stringDataset, i) => stringDataset.map(string => (i, PorterStemmer.stem(string))) }
+      .zipWithIndex.map { case (stringDataset, i) => stringDataset.map(string => (i, string)) }
       .map(stringDataset => stringDataset.toDF("label", "sentence"))
+      .reduce(_ union _)
 
     val tokenizer = new Tokenizer().setInputCol("sentence").setOutputCol("words")
-    val remover = new StopWordsRemover().setInputCol("words").setOutputCol("filteredWords")
-    val wordsData = input.map(stringDataset => tokenizer.transform(stringDataset))
-    val filteredWordsData = wordsData.map(words => remover.transform(words))
+    val remover = new StopWordsRemover().setInputCol(tokenizer.getOutputCol).setOutputCol("filteredWords")
+    //    val tf = new HashingTF().setInputCol(remover.getOutputCol).setOutputCol("nonNormalFeatures")
+    val countVectorizer = new CountVectorizer().setInputCol(remover.getOutputCol).setOutputCol("nonNormalFeatures")
+    val normalizer = new Normalizer().setInputCol(countVectorizer.getOutputCol).setOutputCol("features")
+      .setP(2)
+    //    val normalizer = new Normalizer().setInputCol(tf.getOutputCol).setOutputCol("features")
+    //      .setP(2)
 
-    val tf = new HashingTF().setInputCol("filteredWords").setOutputCol("features")
-    val featureizedData = filteredWordsData.map(stringDataFrame => tf.transform(stringDataFrame))
 
-    def mergeData(dataSequence: Seq[DataFrame]) = {
-      @tailrec def helper(head: DataFrame, tail: Seq[DataFrame]): DataFrame = {
-        if (tail.isEmpty) head
-        else helper(head union tail.head, tail.tail)
-      }
-      helper(dataSequence.head, dataSequence.tail)
-    }
-    mergeData(featureizedData)
+    val wordsData = tokenizer.transform(input)
+    val filteredWordsData = remover.transform(wordsData)
+    val countVectorizerModel = countVectorizer.fit(filteredWordsData)
+    val featureizedData = countVectorizerModel.transform(filteredWordsData)
+    val normalizedData = normalizer.transform(featureizedData)
+
+    normalizedData
   }
 
   val Array(trainingData, testData) = data.randomSplit(Array(0.7, 0.3))
@@ -57,7 +61,7 @@ object NaiveBayesClassifierScala extends App {
   val model = new NaiveBayes().fit(trainingData)
 
   val predictions = model.transform(testData)
-  predictions.show()
+  predictions.show(1000)
 
   val evaluator = new MulticlassClassificationEvaluator()
     .setLabelCol("label")
