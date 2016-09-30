@@ -54,7 +54,7 @@ object NaiveBayesClassifierScala extends App {
     val featureizedData = tf.transform(filteredWordsData)
     val normalizedData = normalizer.transform(featureizedData)
 
-    normalizedData
+    normalizedData.select("label", "sentence", "features")
   }
 
   val Array(trainingData, testData) = data.randomSplit(Array(0.7, 0.3))
