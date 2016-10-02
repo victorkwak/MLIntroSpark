@@ -27,4 +27,27 @@ object EvaluateData extends App{
     ).toDF("label", "sentence")
   }
 
+  val redditData = {
+    val dataDirectory: String = "./Data/RedditData/"
+    val subreddits: Seq[String] = Seq(
+      "AMA",
+      "AskEngineers",
+      "BuyItForLife",
+      "DnD",
+      "Economics",
+      "Fitness",
+      "Frugal",
+      "JamesBond",
+      "LifeProTips",
+      "Showerthoughts"
+    )
+    val dataDirectories: Seq[String] = subreddits.map(subreddit => dataDirectory + subreddit + ".TITLE")
+
+    dataDirectories
+      .map(directory => spark.read.text(directory).as[String])
+      .zipWithIndex.map { case (dataset, i) => dataset.map(string => (i, string)) }
+      .map(dataset => dataset.toDF("label", "sentence"))
+      .reduce(_ union _)
+  }
+
 }
