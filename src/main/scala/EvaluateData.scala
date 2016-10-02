@@ -4,7 +4,7 @@ import org.apache.spark.sql.SparkSession
 /**
   * Victor Kwak, 10/1/16
   */
-object EvaluateData extends App{
+object EvaluateData extends App {
   Logger.getLogger("org").setLevel(Level.OFF)
   // configuration set for local running on 4 cores.
   val spark = SparkSession
@@ -15,10 +15,12 @@ object EvaluateData extends App{
 
   import spark.implicits._
 
+  //So that I can convert Dataset to DataFrame
+
   val presDebateData = {
     val dataDirectory: String = "./Data/Debate/debateClean"
 
-    val data = spark.read.textFile(dataDirectory).map(_.split(": ")).map(
+    spark.read.textFile(dataDirectory).map(_.split(": ")).map(
       array => array(0) match {
         case "HOLT" => (0, array(1))
         case "CLINTON" => (1, array(1))
@@ -50,4 +52,18 @@ object EvaluateData extends App{
       .reduce(_ union _)
   }
 
+  val smsSpamData = {
+    val dataDirectory: String = "./Data/spam/SMSSpam"
+
+    spark.read.textFile(dataDirectory).map(_.split("\t")).map(
+      array => array(0) match {
+        case "ham" => (0, array(1))
+        case "spam" => (1, array(1))
+      }
+    ).toDF("label", "sentence")
+  }
+
+  Classifier.processModelEvaluate(presDebateData, "Presidential Debate Data")
+  Classifier.processModelEvaluate(redditData, "Reddit Title Data")
+  Classifier.processModelEvaluate(smsSpamData, "SMS Spam Data")
 }

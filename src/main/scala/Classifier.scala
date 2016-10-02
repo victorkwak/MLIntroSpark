@@ -51,12 +51,14 @@ object Classifier {
     * Shows a small portion of the evaluated data as well as the accuracy achieved
     * @param predictions
     */
-  private def evaluateModel(predictions: DataFrame) = {
+  private def evaluateModel(predictions: DataFrame, title: String, classifierName: String) = {
     val evaluator = new MulticlassClassificationEvaluator()
       .setLabelCol("label")
       .setPredictionCol("prediction")
       .setMetricName("accuracy")
     val accuracy = evaluator.evaluate(predictions)
+    println(title)
+    println(classifierName)
     predictions.show()
     println("Accuracy: " + accuracy)
   }
@@ -67,18 +69,18 @@ object Classifier {
     * then evaluates how well that model does.
     * @param data
     */
-  def processModelEvaluate(data: DataFrame) = {
+  def processModelEvaluate(data: DataFrame, title: String) = {
     val processedData = process(data)
     val Array(trainingData, testData) = processedData.randomSplit(Array(0.7, 0.3))
 
     val naiveBayesModel = new NaiveBayes().fit(trainingData)
     val naiveBayesPredictions = naiveBayesModel.transform(testData)
-    evaluateModel(naiveBayesPredictions)
+    evaluateModel(naiveBayesPredictions, title, "Multinomial Naive Bayes")
 
     val logisticRegression = new LogisticRegression()
     val oneVsRest = new OneVsRest().setClassifier(logisticRegression)
     val oneVsRestModel = oneVsRest.fit(trainingData)
     val oneVsRestPredictions = oneVsRestModel.transform(testData)
-    evaluateModel(oneVsRestPredictions)
+    evaluateModel(oneVsRestPredictions, title, "One vs Rest (via Logistic Regression)")
   }
 }
