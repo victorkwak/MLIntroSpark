@@ -6,16 +6,16 @@ import org.apache.spark.sql.SparkSession
   */
 object EvaluateData extends App {
   Logger.getLogger("org").setLevel(Level.OFF)
-  // configuration set for local running on 4 cores.
+  System.setProperty("hadoop.home.dir", ".\\winutils\\")
+  // configuration
   val spark = SparkSession
     .builder()
-    .master("local[4]")
+    .master("local[*]")
     .appName("Naive Bayes Spam filter")
+    .config("spark.sql.warehouse.dir", "file:///c:/tmp/spark-warehouse")
     .getOrCreate()
 
-  import spark.implicits._
-
-  //So that I can convert Dataset to DataFrame
+  import spark.implicits._ //So that I can convert Dataset to DataFrame
 
   val presDebateData = {
     val dataDirectory: String = "./Data/Debate/debateClean"
