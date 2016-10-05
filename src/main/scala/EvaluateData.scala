@@ -5,17 +5,15 @@ import org.apache.spark.sql.SparkSession
   * Victor Kwak, 10/1/16
   */
 object EvaluateData extends App {
-  Logger.getLogger("org").setLevel(Level.OFF)
-  // configuration set for local running on 4 cores.
+  Logger.getLogger("org").setLevel(Level.OFF) // Removes a lot of spark-specific logging
+  // configuration
   val spark = SparkSession
     .builder()
-    .master("local[4]")
+    .master("local[*]")
     .appName("Naive Bayes Spam filter")
     .getOrCreate()
 
-  import spark.implicits._
-
-  //So that I can convert Dataset to DataFrame
+  import spark.implicits._  //So that I can convert Dataset to DataFrame
 
   val presDebateData = {
     val dataDirectory: String = "./Data/Debate/debateClean"
