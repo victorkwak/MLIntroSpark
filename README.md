@@ -5,4 +5,4 @@ Uses Apache Spark's machine learning library to classify
 - SMS to either spam or ham
 - Clinton, Trump, or Holt in the 09/26/2016 presidential debate
 
-Uses the latest version of Spark (2.0.0)
+Spark 2.0.0
